@@ -124,13 +124,14 @@ static const char *BODY =
   "</head><body class=\"page_rubrique\"><div id=\"container\">"
   "<div id=\"banner\">"
   "<h1>6LBR</h1>"
-  "<h2>6Lowpan Border Router</h2>"
+  "<h2>CICESE 6Lowpan Border Router</h2>"
   "<div id=\"barre_nav\">"
   "<div class=\"menu-general\">"
   "<a href=\"/\">Info</a>"
   "<a href=\"/sensors.html\">Sensors</a>"
   "<a href=\"/rpl.html\">RPL</a>"
   "<a href=\"/network.html\">Network</a>"
+  "<a href=\"/nodelist.json\">NodeList</a>"
   "<a href=\"/config.html\">Config</a>"
   "<a href=\"/statistics.html\">Statistics</a>"
   "<a href=\"/admin.html\">Administration</a>"
@@ -965,6 +966,39 @@ PT_THREAD(generate_network(struct httpd_state *s))
 
   PSOCK_END(&s->sout);
 }
+static
+PT_THREAD(generate_nodelist(struct httpd_state *s))
+{
+add("nodelist in JSON");
+#if BUF_USES_STACK
+  char buf[BUF_SIZE];
+#endif
+#if WEBSERVER_CONF_LOADTIME
+  static clock_time_t numticks;
+
+  numticks = clock_time();
+#endif
+  static int i;
+  reset_buf();
+add("{");
+ for(i = 0; i < UIP_DS6_ROUTE_NB; i++) {
+	
+	if(node_info_table[i].isused) {
+		//ipaddr_add(&uip_ds6_if.addr_list[i].ipaddr)
+		add("\"node%i\":\"",i);
+		ipaddr_add(&node_info_table[i].ipaddr);
+		if( i+1 != UIP_DS6_ROUTE_NB ){ 
+			add("\",");
+		}else{
+			add("\"}");
+		}
+	}
+	
+    }
+  PSOCK_BEGIN(&s->sout);
+  SEND_STRING(&s->sout, buf);
+  PSOCK_END(&s->sout);
+}
 /*---------------------------------------------------------------------------*/
 
 #define INPUT_FLAG(name, nvm_name, flag, text, on_text, off_text) \
@@ -1553,6 +1587,10 @@ httpd_simple_get_script(const char *name)
     return generate_rpl;
   } else if(strcmp(name, "network.html") == 0) {
     return generate_network;
+  } else if(strcmp(name, "nodelist.json") == 0) {
+    return generate_nodelist
+
+;
   } else if(strcmp(name, "config.html") == 0) {
     return generate_config;
   } else if(strcmp(name, "statistics.html") == 0) {
